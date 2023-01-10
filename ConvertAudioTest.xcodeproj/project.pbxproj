@@ -11,6 +11,8 @@
 		D746989F296CDCFC0039AC7D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D746989E296CDCFC0039AC7D /* ContentView.swift */; };
 		D74698A1296CDCFD0039AC7D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D74698A0296CDCFD0039AC7D /* Assets.xcassets */; };
 		D74698A4296CDCFD0039AC7D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D74698A3296CDCFD0039AC7D /* Preview Assets.xcassets */; };
+		D7B878F6296E250900820BF9 /* smallTest.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D7B878F5296E250900820BF9 /* smallTest.m4a */; };
+		D7B878F8296E26FA00820BF9 /* desiredOutputFormat.wav in Resources */ = {isa = PBXBuildFile; fileRef = D7B878F7296E26FA00820BF9 /* desiredOutputFormat.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +21,8 @@
 		D746989E296CDCFC0039AC7D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D74698A0296CDCFD0039AC7D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D74698A3296CDCFD0039AC7D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		D7B878F5296E250900820BF9 /* smallTest.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = smallTest.m4a; sourceTree = "<group>"; };
+		D7B878F7296E26FA00820BF9 /* desiredOutputFormat.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = desiredOutputFormat.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +56,8 @@
 			isa = PBXGroup;
 			children = (
 				D746989C296CDCFC0039AC7D /* ConvertAudioTestApp.swift */,
+				D7B878F7296E26FA00820BF9 /* desiredOutputFormat.wav */,
+				D7B878F5296E250900820BF9 /* smallTest.m4a */,
 				D746989E296CDCFC0039AC7D /* ContentView.swift */,
 				D74698A0296CDCFD0039AC7D /* Assets.xcassets */,
 				D74698A2296CDCFD0039AC7D /* Preview Content */,
@@ -126,6 +132,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D74698A4296CDCFD0039AC7D /* Preview Assets.xcassets in Resources */,
+				D7B878F8296E26FA00820BF9 /* desiredOutputFormat.wav in Resources */,
+				D7B878F6296E250900820BF9 /* smallTest.m4a in Resources */,
 				D74698A1296CDCFD0039AC7D /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

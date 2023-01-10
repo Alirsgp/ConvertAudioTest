@@ -10,33 +10,80 @@ import AVFoundation
 import Foundation
 
 struct ContentView: View {
+    private var sampleUrl: URL? {
+        Bundle.main.url(forResource: "smallTest", withExtension: "m4a")
+    }
+    
+    private var desiredOutputAudioFormatURL: URL? {
+        Bundle.main.url(forResource: "desiredOutputFormat", withExtension: "wav")
+    }
+    
     var body: some View {
         VStack {
             Button(action: {
-                // Convert
-                let fileManager = FileManager.default
-                do {
-                    if let testInputAudioURL = Bundle.main.url(forResource: "input", withExtension: "wav") {
-                        let asset = try AVAudioFile(forReading: testInputAudioURL)
-                        print("Sample rate for input audio is \(asset.processingFormat.sampleRate)")
-                    }
-                    copyPCMBuffer(from: Bundle.main.url(forResource: "input", withExtension: "wav")!,
-                                  to: try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                                                          .appending(path: "output.wav"))
-                    let outputURL = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                        .appending(path: "output.wav")
-                    let asset = try AVAudioFile(forReading: outputURL)
-                    print("Sample rate for output audio is \(asset.processingFormat.sampleRate)")
-                    
-                } catch let error {
-                    print("Error is \(error.localizedDescription)")
+                // The URL where you want to save the converted audio file
+                guard let inputToChange = sampleUrl else {
+                    print("Couldn't get input file to change")
+                    return
                 }
+                
+                guard let outputFile = desiredOutputAudioFormatURL else {
+                    print("Couldn't get output file")
+                    return
+                }
+                
+                convertAudio(inputURL: inputToChange, outputURL: outputFile)
+                
             }) {
                 Text("Convert")
             }
         }
         .padding()
     }
+}
+
+func convertAudio(inputURL: URL, outputURL: URL) {
+    
+    guard let inputBuffer = readPCMBuffer(url: inputURL) else {
+        print("Couldn't get input buffer")
+        return
+    }
+    
+    // The desired output format for the audio file
+    guard let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                           sampleRate: 16000,
+                                           channels: 1,
+                                           interleaved: false) else {
+        print("Couldn't get outputFormat")
+        return
+    }
+    
+    guard let outputBuffer = readPCMBuffer(url: outputURL) else {
+        print("Couldn't get output buffer")
+        return
+    }
+    
+    // Create an AVAudioConverter
+    guard let converter = AVAudioConverter(from: inputBuffer.format, to: outputFormat) else {
+        print("Couldn't create converter")
+        return
+    }
+    
+    // Open the input file and prepare it for conversion
+    do {
+        converter.reset()
+        converter.bitRate = Int(outputFormat.sampleRate) * Int(outputFormat.streamDescription.pointee.mBitsPerChannel)
+        
+        // Create the output file and prepare it for writing
+        let outputFile = try AVAudioFile(forWriting: outputURL, settings: outputFormat.settings)
+        
+        // Perform the conversion
+        try converter.convert(to: outputBuffer, from: inputBuffer)
+        try outputFile.write(from: outputBuffer)
+    } catch let error {
+        print("error thrown is \(error.localizedDescription)")
+    }
+    
 }
 
 
@@ -57,54 +104,18 @@ func readPCMBuffer(url: URL) -> AVAudioPCMBuffer? {
 
 func writePCMBuffer(url: URL, buffer: AVAudioPCMBuffer) throws {
     let settings: [String: Any] = [
-        AVFormatIDKey: kAudioFormatLinearPCM,
-        AVNumberOfChannelsKey: 1,
-        AVSampleRateKey: 16000,
+        AVFormatIDKey: buffer.format.settings[AVFormatIDKey] ?? kAudioFormatLinearPCM,
+        AVNumberOfChannelsKey: buffer.format.settings[AVNumberOfChannelsKey] ?? 2,
+        AVSampleRateKey: buffer.format.settings[AVSampleRateKey] ?? 44100,
         AVLinearPCMBitDepthKey: buffer.format.settings[AVLinearPCMBitDepthKey] ?? 16
     ]
-
+    
     do {
         let output = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatInt16, interleaved: false)
         try output.write(from: buffer)
-
-        print("MADE IT")
     } catch {
         print("ERROR IS \(error.localizedDescription)")
         throw error
-    }
-}
-
-func copyPCMBuffer(from inputUrl: URL, to outputUrl: URL) {
-    guard let inputBuffer = readPCMBuffer(url: inputUrl) else {
-        fatalError("failed to read \(inputUrl)")
-    }
-    guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: inputBuffer.format, frameCapacity: inputBuffer.frameLength) else {
-        fatalError("failed to create a buffer for writing")
-    }
-    guard let inputInt16ChannelData = inputBuffer.int16ChannelData else {
-        fatalError("failed to obtain underlying input buffer")
-    }
-    guard let outputInt16ChannelData = outputBuffer.int16ChannelData else {
-        fatalError("failed to obtain underlying output buffer")
-    }
-    print("hiii")
-    for channel in 0 ..< Int(inputBuffer.format.channelCount) {
-        let p1: UnsafeMutablePointer<Int16> = inputInt16ChannelData[channel]
-        let p2: UnsafeMutablePointer<Int16> = outputInt16ChannelData[channel]
-
-        for i in 0 ..< Int(inputBuffer.frameLength) {
-            p2[i] = p1[i]
-        }
-    }
-
-    outputBuffer.frameLength = inputBuffer.frameLength
-    print("OVA HERE")
-    do {
-        try writePCMBuffer(url: outputUrl, buffer: outputBuffer)
-        print("Done writing!")
-    } catch let error {
-        debugPrint("Error is \(error.localizedDescription)")
-        fatalError("failed to write \(outputUrl)")
     }
 }
 
