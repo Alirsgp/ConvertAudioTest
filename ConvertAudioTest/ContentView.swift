@@ -70,16 +70,26 @@ func convertAudio(inputURL: URL, outputURL: URL) {
     }
     
     // Open the input file and prepare it for conversion
+    print("Attempting to use converter now")
     do {
         converter.reset()
+        print("Reset converter")
         converter.bitRate = Int(outputFormat.sampleRate) * Int(outputFormat.streamDescription.pointee.mBitsPerChannel)
+        print("Changed converter bit rate")
         
         // Create the output file and prepare it for writing
-        let outputFile = try AVAudioFile(forWriting: outputURL, settings: outputFormat.settings)
+        let tempOutputURL = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appending(path: "tempOutputURL.wav")
+        let outputFile = try AVAudioFile(forWriting: tempOutputURL, settings: outputFormat.settings)
+        print("Created outputFile to write to")
         
         // Perform the conversion
+        print("output buffer frame capacity is \(outputBuffer.frameCapacity)")
+        print("input buffer frame capacity is \(inputBuffer.frameLength)")
         try converter.convert(to: outputBuffer, from: inputBuffer)
+        print("Got past convert")
         try outputFile.write(from: outputBuffer)
+        print("Got past writing out output file")
     } catch let error {
         print("error thrown is \(error.localizedDescription)")
     }
@@ -100,23 +110,6 @@ func readPCMBuffer(url: URL) -> AVAudioPCMBuffer? {
         return nil
     }
     return buffer
-}
-
-func writePCMBuffer(url: URL, buffer: AVAudioPCMBuffer) throws {
-    let settings: [String: Any] = [
-        AVFormatIDKey: buffer.format.settings[AVFormatIDKey] ?? kAudioFormatLinearPCM,
-        AVNumberOfChannelsKey: buffer.format.settings[AVNumberOfChannelsKey] ?? 2,
-        AVSampleRateKey: buffer.format.settings[AVSampleRateKey] ?? 44100,
-        AVLinearPCMBitDepthKey: buffer.format.settings[AVLinearPCMBitDepthKey] ?? 16
-    ]
-    
-    do {
-        let output = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatInt16, interleaved: false)
-        try output.write(from: buffer)
-    } catch {
-        print("ERROR IS \(error.localizedDescription)")
-        throw error
-    }
 }
 
 
