@@ -20,7 +20,7 @@ func convertAudioFormat(sourceName: String, sourceExtension: String, destination
     let destinationFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: true)!
     
     // 3. Create an output file and an output buffer.
-    let downloads = NSSearchPathForDirectoriesInDomains(.downloadsDirectory, .userDomainMask, true)[0]
+    let downloads = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
     let destinationURL = URL(fileURLWithPath: downloads + "/" + destinationName + "." + destinationExtension)
     
     var destinationFile = try? AVAudioFile(forWriting: destinationURL,
@@ -90,7 +90,9 @@ func convertAudioFormat(sourceName: String, sourceExtension: String, destination
     // 8. Compare the duration of the source and destination file. If the conversion has been successful, the source and destination file should roughly the same length
     let sourceDuration = Double(sourceFile.length) / sourceFile.fileFormat.sampleRate
     do {
+        // We get an exception saying resource not available
         _ = try destinationURL.checkResourceIsReachable()
+        // We get an exception here if we try to read the destinationURL as the file does not exist
         let destinationReadFile = try AVAudioFile(forReading: destinationURL)
         let destinationDuration = Double(destinationReadFile.length) / destinationReadFile.fileFormat.sampleRate
         if Int(sourceDuration) == Int(destinationDuration) {
@@ -105,8 +107,8 @@ func convertAudioFormat(sourceName: String, sourceExtension: String, destination
         } else {
             print("File conversion failed")
         }
-    } catch let error {
-        print("Error is on step 8: \(error.localizedDescription)")
+    } catch let exception {
+        print("Exception is on step 8: \(exception.localizedDescription)")
     }
 
     
