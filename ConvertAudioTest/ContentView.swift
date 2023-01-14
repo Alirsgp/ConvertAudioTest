@@ -9,107 +9,115 @@ import SwiftUI
 import AVFoundation
 import Foundation
 
-struct ContentView: View {
-    private var sampleUrl: URL? {
-        Bundle.main.url(forResource: "smallTest", withExtension: "m4a")
+// Using AVAudioConverter to covert from one file format to another.
+func convertAudioFormat(sourceName: String, sourceExtension: String, destinationName: String, destinationExtension: String) {
+    // 1. Open the audio file to process and get its processing format.
+    let sourceFileURL = Bundle.main.url(forResource: sourceName, withExtension: sourceExtension)!
+    let sourceFile = try! AVAudioFile(forReading: sourceFileURL)
+    let sourceFormat = sourceFile.processingFormat
+    
+    // 2. Change this to be your preferred output format.
+    let destinationFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: true)!
+    
+    // 3. Create an output file and an output buffer.
+    let downloads = NSSearchPathForDirectoriesInDomains(.downloadsDirectory, .userDomainMask, true)[0]
+    let destinationURL = URL(fileURLWithPath: downloads + "/" + destinationName + "." + destinationExtension)
+    
+    var destinationFile = try? AVAudioFile(forWriting: destinationURL,
+                                           settings: destinationFormat.settings,
+                                           commonFormat: destinationFormat.commonFormat,
+                                           interleaved: destinationFormat.isInterleaved)
+    
+    // 4. Create an audio buffer for incoming and outgoing audio data.
+    let kFrameCapacity: AVAudioFrameCount = 4096
+    let sourceBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: kFrameCapacity)
+    let destinationBuffer = AVAudioPCMBuffer(pcmFormat: destinationFormat, frameCapacity: kFrameCapacity)
+    
+    // 5. Create an instance of AVAudioConverter to handle the actual conversion. Provide the source and destination format.
+    let converter = AVAudioConverter(from: sourceFormat, to: destinationFormat)
+    let startTime = NSDate()
+    var done = false
+    print("Beginning conversion")
+    
+    // 6. Loop over convert function until there is no more source data left. When the convertor has data (.haveData) write this to the output file.
+    while !done {
+        let errorPtr: NSErrorPointer = nil
+        let conversionStatus = converter!.convert(to: destinationBuffer!, error: errorPtr, withInputFrom: { (packetCount, inputStatus) -> AVAudioBuffer? in
+            
+            var fileError = false
+            do {
+                try sourceFile.read(into: sourceBuffer!, frameCount: packetCount)
+            } catch {
+                fileError = true
+            }
+            
+            if !fileError && sourceBuffer!.frameLength > 0 {
+                inputStatus.pointee = .haveData
+                return sourceBuffer
+            }
+            
+            inputStatus.pointee = .endOfStream
+            return nil
+        })
+        
+        switch conversionStatus {
+        case .inputRanDry:
+            fallthrough
+        case .haveData:
+            if destinationBuffer!.frameLength > 0 {
+                do {
+                    try destinationFile?.write(from: destinationBuffer!)
+                } catch {
+                    print("Error writing destination file: \(error)")
+                    done = true
+                }
+            }
+        case .error:
+            fallthrough
+        case .endOfStream:
+            done = true
+        @unknown default:
+            fatalError()
+        }
     }
     
-    private var desiredOutputAudioFormatURL: URL? {
-        Bundle.main.url(forResource: "desiredOutputFormat", withExtension: "wav")
+    let elapsed = abs(startTime.timeIntervalSinceNow)
+    print("Conversion completed in " + String(format: "%.02f", elapsed) + " Seconds")
+    
+    // 7. nil destination file to force close
+    destinationFile = nil
+    
+    // 8. Compare the duration of the source and destination file. If the conversion has been successful, the source and destination file should roughly the same length
+    let sourceDuration = Double(sourceFile.length) / sourceFile.fileFormat.sampleRate
+    do {
+        _ = try destinationURL.checkResourceIsReachable()
+        let destinationReadFile = try AVAudioFile(forReading: destinationURL)
+        let destinationDuration = Double(destinationReadFile.length) / destinationReadFile.fileFormat.sampleRate
+        if Int(sourceDuration) == Int(destinationDuration) {
+            print("Successfully converted")
+            print("Source file : \(sourceFileURL)")
+            print("Source format : \(sourceFormat)")
+            print("")
+            print("To")
+            print("")
+            print("Destination file : \(destinationURL)")
+            print("Destination format : \(destinationFormat)")
+        } else {
+            print("File conversion failed")
+        }
+    } catch let error {
+        print("Error is on step 8: \(error.localizedDescription)")
     }
+
+    
+
+}
+
+struct ContentView: View {
     
     var body: some View {
-        VStack {
-            Button(action: {
-                // The URL where you want to save the converted audio file
-                guard let inputToChange = sampleUrl else {
-                    print("Couldn't get input file to change")
-                    return
-                }
-                
-                guard let outputFile = desiredOutputAudioFormatURL else {
-                    print("Couldn't get output file")
-                    return
-                }
-                
-                convertAudio(inputURL: inputToChange, outputURL: outputFile)
-                
-            }) {
-                Text("Convert")
-            }
+        Button("Convert") {
+            convertAudioFormat(sourceName: "smallTest", sourceExtension: "m4a", destinationName: "appleOutput", destinationExtension: "wav")
         }
-        .padding()
     }
 }
-
-func convertAudio(inputURL: URL, outputURL: URL) {
-    
-    guard let inputBuffer = readPCMBuffer(url: inputURL) else {
-        print("Couldn't get input buffer")
-        return
-    }
-    
-    // The desired output format for the audio file
-    guard let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                           sampleRate: 16000,
-                                           channels: 1,
-                                           interleaved: false) else {
-        print("Couldn't get outputFormat")
-        return
-    }
-    
-    guard let outputBuffer = readPCMBuffer(url: outputURL) else {
-        print("Couldn't get output buffer")
-        return
-    }
-    
-    // Create an AVAudioConverter
-    guard let converter = AVAudioConverter(from: inputBuffer.format, to: outputFormat) else {
-        print("Couldn't create converter")
-        return
-    }
-    
-    // Open the input file and prepare it for conversion
-    print("Attempting to use converter now")
-    do {
-        converter.reset()
-        print("Reset converter")
-        converter.bitRate = Int(outputFormat.sampleRate) * Int(outputFormat.streamDescription.pointee.mBitsPerChannel)
-        print("Changed converter bit rate")
-        
-        // Create the output file and prepare it for writing
-        let tempOutputURL = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appending(path: "tempOutputURL.wav")
-        let outputFile = try AVAudioFile(forWriting: tempOutputURL, settings: outputFormat.settings)
-        print("Created outputFile to write to")
-        
-        // Perform the conversion
-        print("output buffer frame capacity is \(outputBuffer.frameCapacity)")
-        print("input buffer frame capacity is \(inputBuffer.frameLength)")
-        try converter.convert(to: outputBuffer, from: inputBuffer)
-        print("Got past convert")
-        try outputFile.write(from: outputBuffer)
-        print("Got past writing out output file")
-    } catch let error {
-        print("error thrown is \(error.localizedDescription)")
-    }
-    
-}
-
-
-func readPCMBuffer(url: URL) -> AVAudioPCMBuffer? {
-    guard let input = try? AVAudioFile(forReading: url, commonFormat: .pcmFormatInt16, interleaved: false) else {
-        return nil
-    }
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: AVAudioFrameCount(input.length)) else {
-        return nil
-    }
-    do {
-        try input.read(into: buffer)
-    } catch {
-        return nil
-    }
-    return buffer
-}
-
-
